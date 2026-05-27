@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Kanban</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@400;600;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #1a1a24;
+    --border: #2a2a38;
+    --border2: #3a3a50;
+    --text: #e8e8f0;
+    --text2: #8888a8;
+    --text3: #5555708;
+    --accent: #7b6cff;
+    --accent2: #a89fff;
+    --green: #3ddc84;
+    --yellow: #ffc857;
+    --red: #ff6b6b;
+    --blue: #5bc8ff;
+    --p0: #ff6b6b;
+    --p1: #ffc857;
+    --p2: #5bc8ff;
+    --p3: #8888a8;
+  }
+
+  html, body { height: 100%; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 32px;
+    height: 56px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .logo-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 12px var(--accent);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.8); }
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .stats {
+    display: flex;
+    gap: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text2);
+  }
+
+  .stat span { color: var(--text); font-weight: 600; }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    gap: 0;
+    padding: 0 32px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .tab {
+    padding: 14px 20px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text2);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent2); border-bottom-color: var(--accent); }
+
+  .tab-badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .tab.active .tab-badge { background: var(--accent); border-color: var(--accent); color: white; }
+
+  /* MAIN LAYOUT */
+  .main { padding: 24px 32px; }
+
+  /* COLUMNS */
+  .board {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    min-height: 60vh;
+  }
+
+  .column {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .column-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface2);
+  }
+
+  .column-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .col-backlog .column-title::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--text2); display: inline-block; }
+  .col-progress .column-title::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--yellow); display: inline-block; box-shadow: 0 0 8px var(--yellow); }
+  .col-testing .column-title::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--blue); display: inline-block; box-shadow: 0 0 8px var(--blue); }
+  .col-done .column-title::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--green); display: inline-block; box-shadow: 0 0 8px var(--green); }
+
+  .column-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--text2);
+    background: var(--border);
+    border-radius: 4px;
+    padding: 1px 6px;
+  }
+
+  .column-body { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+
+  /* CARD */
+  .card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+
+  .card:hover {
+    border-color: var(--border2);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  }
+
+  .card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .card-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text2);
+    flex-shrink: 0;
+  }
+
+  .card-priority {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    flex-shrink: 0;
+  }
+
+  .priority-P0 { color: var(--p0); background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); }
+  .priority-P1 { color: var(--p1); background: rgba(255,200,87,0.1); border: 1px solid rgba(255,200,87,0.3); }
+  .priority-P2 { color: var(--p2); background: rgba(91,200,255,0.1); border: 1px solid rgba(91,200,255,0.3); }
+  .priority-P3 { color: var(--p3); background: rgba(136,136,168,0.1); border: 1px solid rgba(136,136,168,0.3); }
+
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.4;
+    margin-bottom: 6px;
+  }
+
+  .card-desc {
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+
+  .card-meta {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .card-type {
+    font-size: 10px;
+    color: var(--text2);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .card-comments {
+    font-size: 10px;
+    color: var(--text2);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .card-comments::before { content: '💬'; font-size: 9px; }
+
+  /* SYSTEM CARD accent */
+  .card.type-system { border-left: 3px solid var(--p0); }
+  .card.type-requirement { border-left: 3px solid var(--accent); }
+
+  /* ADD BUTTON */
+  .add-btn {
+    width: 100%;
+    padding: 8px;
+    background: transparent;
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    color: var(--text2);
+    cursor: pointer;
+    font-size: 12px;
+    font-family: 'Syne', sans-serif;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 4px;
+  }
+
+  .add-btn:hover { border-color: var(--accent); color: var(--accent2); }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 12px;
+    width: 600px;
+    max-width: 95vw;
+    max-height: 85vh;
+    overflow-y: auto;
+    transform: translateY(12px);
+    transition: transform 0.2s;
+  }
+
+  .modal-overlay.open .modal { transform: translateY(0); }
+
+  .modal-header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    z-index: 1;
+  }
+
+  .modal-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text2);
+  }
+
+  .modal-close {
+    background: none;
+    border: none;
+    color: var(--text2);
+    cursor: pointer;
+    font-size: 18px;
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 4px;
+    transition: all 0.15s;
+  }
+
+  .modal-close:hover { background: var(--border); color: var(--text); }
+
+  .modal-body { padding: 20px 24px; }
+
+  .modal-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .modal-tags {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  .tag {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500;
+  }
+
+  .tag-system { background: rgba(255,107,107,0.15); color: var(--p0); border: 1px solid rgba(255,107,107,0.3); }
+  .tag-requirement { background: rgba(123,108,255,0.15); color: var(--accent2); border: 1px solid rgba(123,108,255,0.3); }
+
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text2);
+    margin-bottom: 8px;
+    margin-top: 16px;
+  }
+
+  .modal-desc {
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text2);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+  }
+
+  /* STATUS SELECTOR */
+  .status-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .status-btn {
+    padding: 5px 12px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text2);
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    transition: all 0.15s;
+  }
+
+  .status-btn:hover { border-color: var(--border2); color: var(--text); }
+  .status-btn.active-backlog { border-color: var(--text2); color: var(--text); background: rgba(136,136,168,0.1); }
+  .status-btn.active-in-progress { border-color: var(--yellow); color: var(--yellow); background: rgba(255,200,87,0.1); }
+  .status-btn.active-testing { border-color: var(--blue); color: var(--blue); background: rgba(91,200,255,0.1); }
+  .status-btn.active-done { border-color: var(--green); color: var(--green); background: rgba(61,220,132,0.1); }
+
+  /* ACCEPTANCE CRITERIA */
+  .criteria-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .criteria-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text2);
+    padding: 6px 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+  }
+
+  .criteria-item::before { content: '→'; color: var(--accent); flex-shrink: 0; font-family: 'JetBrains Mono', monospace; }
+
+  /* COMMENTS */
+  .comments-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .comment {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+
+  .comment-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+
+  .comment-author {
+    font-size: 11px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .comment-author.ai { color: var(--accent2); }
+  .comment-author.human { color: var(--green); }
+
+  .comment-time {
+    font-size: 10px;
+    color: var(--text2);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .comment-text { font-size: 13px; color: var(--text2); line-height: 1.6; white-space: pre-wrap; }
+
+  .comment-input-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    align-items: flex-end;
+  }
+
+  .comment-input-wrap { flex: 1; }
+
+  textarea, input, select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    padding: 8px 12px;
+    outline: none;
+    resize: vertical;
+    transition: border-color 0.15s;
+  }
+
+  textarea:focus, input:focus, select:focus { border-color: var(--accent); }
+  select option { background: var(--surface); }
+
+  .btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: none;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+  .btn-ghost:hover { border-color: var(--border2); color: var(--text); }
+
+  /* NEW CARD FORM */
+  .form-grid { display: flex; flex-direction: column; gap: 14px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-field label { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text2); margin-bottom: 6px; }
+
+  /* EMPTY STATE */
+  .empty { text-align: center; padding: 32px 16px; color: var(--text2); font-size: 12px; }
+  .empty-icon { font-size: 24px; margin-bottom: 8px; opacity: 0.4; }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    AI Kanban
+  </div>
+  <div class="header-actions">
+    <div class="stats" id="headerStats"></div>
+    <button class="btn btn-primary" onclick="openNewModal()">+ New</button>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-tab="requirements" onclick="switchTab('requirements')">
+    Requirements <span class="tab-badge" id="badge-req">0</span>
+  </div>
+  <div class="tab" data-tab="system" onclick="switchTab('system')">
+    System / P0 <span class="tab-badge" id="badge-sys">0</span>
+  </div>
+</div>
+
+<div class="main">
+  <div class="board" id="board"></div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal" id="detailModalContent"></div>
+</div>
+
+<!-- NEW CARD MODAL -->
+<div class="modal-overlay" id="newModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span style="font-weight:700;font-size:15px;">新建卡片</span>
+      <button class="modal-close" onclick="closeNewModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field">
+          <label>标题 *</label>
+          <input id="newTitle" type="text" placeholder="简短描述这个需求/问题">
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>类型 *</label>
+            <select id="newType" onchange="toggleTypeFields()">
+              <option value="requirement">需求</option>
+              <option value="system">系统级问题</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>优先级</label>
+            <select id="newPriority">
+              <option value="P0">P0 — 紧急</option>
+              <option value="P1" selected>P1 — 高</option>
+              <option value="P2">P2 — 中</option>
+              <option value="P3">P3 — 低</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-field">
+          <label>描述</label>
+          <textarea id="newDesc" rows="3" placeholder="详细说明背景、目标、约束条件..."></textarea>
+        </div>
+        <div class="form-field" id="criteriaField">
+          <label>验收标准（每行一条）</label>
+          <textarea id="newCriteria" rows="3" placeholder="验证码3分钟内有效&#10;同一手机号60秒内只能发一次"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:4px;">
+          <button class="btn btn-ghost" onclick="closeNewModal()">取消</button>
+          <button class="btn btn-primary" onclick="submitNew()">创建</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const STATUSES = ['backlog', 'in-progress', 'testing', 'done'];
+const STATUS_LABELS = { backlog: 'Backlog', 'in-progress': 'In Progress', testing: 'Testing', done: 'Done' };
+const STATUS_COLS = { backlog: 'col-backlog', 'in-progress': 'col-progress', testing: 'col-testing', done: 'col-done' };
+
+let state = { system: [], requirements: [] };
+let currentTab = 'requirements';
+let currentItem = null;
+
+async function fetchData() {
+  const res = await fetch('/api/kanban');
+  state = await res.json();
+  render();
+}
+
+function getList() {
+  return currentTab === 'system' ? state.system : state.requirements;
+}
+
+function render() {
+  const list = getList();
+
+  // badges
+  document.getElementById('badge-req').textContent = state.requirements.length;
+  document.getElementById('badge-sys').textContent = state.system.length;
+
+  // header stats
+  const done = list.filter(i => i.status === 'done').length;
+  const inprog = list.filter(i => i.status === 'in-progress').length;
+  document.getElementById('headerStats').innerHTML = `
+    <div>进行中 <span>${inprog}</span></div>
+    <div>已完成 <span>${done}/${list.length}</span></div>
+  `;
+
+  // board
+  const board = document.getElementById('board');
+  board.innerHTML = STATUSES.map(status => {
+    const cards = list.filter(i => i.status === status);
+    return `
+      <div class="column ${STATUS_COLS[status]}">
+        <div class="column-header">
+          <div class="column-title">${STATUS_LABELS[status]}</div>
+          <div class="column-count">${cards.length}</div>
+        </div>
+        <div class="column-body">
+          ${cards.map(renderCard).join('')}
+          ${status === 'backlog' ? `<button class="add-btn" onclick="openNewModal('${currentTab === 'system' ? 'system' : 'requirement'}')">+ 添加</button>` : ''}
+          ${cards.length === 0 && status !== 'backlog' ? `<div class="empty"><div class="empty-icon">○</div>暂无卡片</div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderCard(item) {
+  return `
+    <div class="card type-${item.type}" onclick="openDetail('${item.id}')">
+      <div class="card-top">
+        <span class="card-id">${item.id}</span>
+        <span class="card-priority priority-${item.priority}">${item.priority}</span>
+      </div>
+      <div class="card-title">${escHtml(item.title)}</div>
+      ${item.description ? `<div class="card-desc">${escHtml(item.description)}</div>` : ''}
+      <div class="card-footer">
+        <div class="card-meta">
+          <span class="card-type">${item.type === 'system' ? 'SYSTEM' : 'REQ'}</span>
+        </div>
+        ${item.comments.length > 0 ? `<span class="card-comments">${item.comments.length}</span>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function openDetail(id) {
+  const all = [...state.system, ...state.requirements];
+  currentItem = all.find(i => i.id === id);
+  if (!currentItem) return;
+
+  const content = document.getElementById('detailModalContent');
+  content.innerHTML = `
+    <div class="modal-header">
+      <span class="modal-id">${currentItem.id}</span>
+      <button class="modal-close" onclick="closeDetail()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-title">${escHtml(currentItem.title)}</div>
+      <div class="modal-tags">
+        <span class="tag tag-${currentItem.type}">${currentItem.type === 'system' ? 'SYSTEM' : 'REQUIREMENT'}</span>
+        <span class="card-priority priority-${currentItem.priority}" style="font-size:12px;padding:3px 10px;border-radius:4px;">${currentItem.priority}</span>
+      </div>
+
+      ${currentItem.description ? `
+        <div class="section-label">描述</div>
+        <div class="modal-desc">${escHtml(currentItem.description)}</div>
+      ` : ''}
+
+      ${currentItem.acceptanceCriteria && currentItem.acceptanceCriteria.length > 0 ? `
+        <div class="section-label">验收标准</div>
+        <ul class="criteria-list">
+          ${currentItem.acceptanceCriteria.map(c => `<li class="criteria-item">${escHtml(c)}</li>`).join('')}
+        </ul>
+      ` : ''}
+
+      <div class="section-label">状态</div>
+      <div class="status-row">
+        ${STATUSES.map(s => `
+          <button class="status-btn ${currentItem.status === s ? 'active-' + s : ''}"
+            onclick="updateStatus('${currentItem.id}', '${s}')">
+            ${STATUS_LABELS[s]}
+          </button>
+        `).join('')}
+      </div>
+
+      ${currentItem.completedAt ? `
+        <div style="margin-top:10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--green);">
+          ✓ 完成于 ${formatDate(currentItem.completedAt)}
+        </div>
+      ` : ''}
+
+      <div class="section-label">评论区</div>
+      <div class="comments-list" id="commentsList">
+        ${currentItem.comments.length === 0 ? '<div class="empty"><div class="empty-icon">💬</div>暂无评论</div>' : ''}
+        ${currentItem.comments.map(renderComment).join('')}
+      </div>
+      <div class="comment-input-row">
+        <div class="comment-input-wrap">
+          <textarea id="commentText" rows="2" placeholder="添加评论... AI 的回复也会出现在这里"></textarea>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <select id="commentAuthor" style="width:90px;font-size:11px;padding:6px 8px;">
+            <option value="Human">Human</option>
+            <option value="AI">AI</option>
+          </select>
+          <button class="btn btn-primary" onclick="postComment('${currentItem.id}')" style="padding:6px 12px;font-size:12px;">发送</button>
+        </div>
+      </div>
+
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;">
+        <button class="btn btn-ghost" style="font-size:12px;color:var(--red);border-color:rgba(255,107,107,0.3);" onclick="deleteItem('${currentItem.id}')">删除卡片</button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('detailModal').classList.add('open');
+}
+
+function renderComment(c) {
+  return `
+    <div class="comment">
+      <div class="comment-header">
+        <span class="comment-author ${c.author === 'AI' ? 'ai' : 'human'}">${c.author === 'AI' ? '◆ AI' : '● ' + c.author}</span>
+        <span class="comment-time">${formatDate(c.createdAt)}</span>
+      </div>
+      <div class="comment-text">${escHtml(c.content)}</div>
+    </div>
+  `;
+}
+
+function closeDetail() {
+  document.getElementById('detailModal').classList.remove('open');
+  currentItem = null;
+}
+
+async function updateStatus(id, status) {
+  await fetch(`/api/kanban/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status })
+  });
+  await fetchData();
+  if (currentItem) openDetail(id);
+}
+
+async function postComment(id) {
+  const content = document.getElementById('commentText').value.trim();
+  const author = document.getElementById('commentAuthor').value;
+  if (!content) return;
+
+  await fetch(`/api/kanban/${id}/comment`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ author, content })
+  });
+
+  document.getElementById('commentText').value = '';
+  await fetchData();
+  openDetail(id);
+}
+
+async function deleteItem(id) {
+  if (!confirm('确定删除这张卡片？')) return;
+  await fetch(`/api/kanban/${id}`, { method: 'DELETE' });
+  closeDetail();
+  await fetchData();
+}
+
+function openNewModal(type) {
+  if (type) document.getElementById('newType').value = type;
+  toggleTypeFields();
+  document.getElementById('newModal').classList.add('open');
+}
+
+function closeNewModal() {
+  document.getElementById('newModal').classList.remove('open');
+  document.getElementById('newTitle').value = '';
+  document.getElementById('newDesc').value = '';
+  document.getElementById('newCriteria').value = '';
+}
+
+function toggleTypeFields() {
+  const type = document.getElementById('newType').value;
+  document.getElementById('criteriaField').style.display = type === 'requirement' ? 'block' : 'none';
+}
+
+async function submitNew() {
+  const title = document.getElementById('newTitle').value.trim();
+  const type = document.getElementById('newType').value;
+  const priority = document.getElementById('newPriority').value;
+  const description = document.getElementById('newDesc').value.trim();
+  const criteriaRaw = document.getElementById('newCriteria').value.trim();
+  const acceptanceCriteria = criteriaRaw ? criteriaRaw.split('\n').map(s => s.trim()).filter(Boolean) : [];
+
+  if (!title) { alert('标题不能为空'); return; }
+
+  await fetch('/api/kanban', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, type, priority, description, acceptanceCriteria })
+  });
+
+  closeNewModal();
+  // switch to the correct tab
+  if (type === 'system' && currentTab !== 'system') switchTab('system');
+  else if (type === 'requirement' && currentTab !== 'requirements') switchTab('requirements');
+  else await fetchData();
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  render();
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+// close on overlay click
+document.getElementById('detailModal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeDetail();
+});
+document.getElementById('newModal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeNewModal();
+});
+
+fetchData();
+</script>
+</body>
+</html>
