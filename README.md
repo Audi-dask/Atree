@@ -1,4 +1,4 @@
-# Atree — AI 协作开发规范
+# Atree Vibe coding 协作看板 — 给人看的说明！
 
 > 让 AI 参与开发有迹可循、有规可依。
 
