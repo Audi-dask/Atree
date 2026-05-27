@@ -1,0 +1,13 @@
+{
+  "name": "ai-kanban",
+  "version": "1.0.0",
+  "description": "Lightweight AI collaboration kanban",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
