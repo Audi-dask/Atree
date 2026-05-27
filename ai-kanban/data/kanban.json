@@ -1,0 +1,32 @@
+{
+  "system": [
+    {
+      "id": "SYS-001",
+      "title": "系统示例：P0 级架构决策",
+      "description": "这里放系统级问题，如依赖冲突、架构决策、配置异常等。",
+      "priority": "P0",
+      "status": "backlog",
+      "type": "system",
+      "comments": [],
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "title": "需求示例：用户登录功能",
+      "description": "支持手机号 + 验证码登录，验证码有效期3分钟。",
+      "priority": "P1",
+      "status": "backlog",
+      "type": "requirement",
+      "acceptanceCriteria": [
+        "验证码3分钟内有效",
+        "同一手机号60秒内只能发一次"
+      ],
+      "comments": [],
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    }
+  ]
+}
